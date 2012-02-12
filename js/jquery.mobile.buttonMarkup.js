@@ -2,14 +2,21 @@
 //>>description: For making button-like links.
 //>>label: Buttons
 
-define( [ "jquery", "jquery.mobile.core", "jquery.mobile.vmouse" ], function( $ ) {
+define( [ "jquery", "./jquery.mobile.core", "./jquery.mobile.vmouse" ], function( $ ) {
 //>>excludeEnd("jqmBuildExclude");
 ( function( $, undefined ) {
 
 $.fn.buttonMarkup = function( options ) {
+	var $workingSet = this;
+
+	// trim the working set when ignoring content is switched on
+	if( $.mobile.ignoreContentEnabled ){
+		$workingSet = $.mobile.enhanceable( $workingSet );
+	}
+
 	options = options || {};
-	for ( var i = 0; i < this.length; i++ ) {
-		var el = this.eq( i ),
+	for ( var i = 0; i < $workingSet.length; i++ ) {
+		var el = $workingSet.eq( i ),
 			e = el[ 0 ],
 			o = $.extend( {}, $.fn.buttonMarkup.defaults, {
 				icon:       options.icon       !== undefined ? options.icon       : el.jqmData( "icon" ),
@@ -18,7 +25,8 @@ $.fn.buttonMarkup = function( options ) {
 				inline:     options.inline     !== undefined ? options.inline     : el.jqmData( "inline" ),
 				shadow:     options.shadow     !== undefined ? options.shadow     : el.jqmData( "shadow" ),
 				corners:    options.corners    !== undefined ? options.corners    : el.jqmData( "corners" ),
-				iconshadow: options.iconshadow !== undefined ? options.iconshadow : el.jqmData( "iconshadow" )
+				iconshadow: options.iconshadow !== undefined ? options.iconshadow : el.jqmData( "iconshadow" ),
+				mini:       options.mini       !== undefined ? options.mini       : el.jqmData( "mini" )
 			}, options ),
 
 			// Classes Defined
@@ -29,10 +37,7 @@ $.fn.buttonMarkup = function( options ) {
 			buttonInner = document.createElement( o.wrapperEls ),
 			buttonText = document.createElement( o.wrapperEls ),
 			buttonIcon = o.icon ? document.createElement( "span" ) : null;
-			
-		// if so, prevent double enhancement, and continue with rest of the elements.
-		if( e.tagName === "INPUT" && el.jqmData('role') === "button" ) continue;
-		
+
 		// if this is a button, check if it's been enhanced and, if not, use the right function
 		if( e.tagName === "BUTTON" ) {
 	 	 	if ( !$( e.parentNode ).hasClass( "ui-btn" ) ) $( e ).button();
@@ -52,6 +57,12 @@ $.fn.buttonMarkup = function( options ) {
 
 		if ( o.inline ) {
 			buttonClass += " ui-btn-inline";
+		}
+
+		if ( o.mini ) {
+			buttonClass += " ui-mini";
+		} else if ( o.mini === false ) {
+			buttonClass += " ui-fullsize"; // Used to control styling in headers/footers, where buttons default to `mini` style.
 		}
 
 		if ( o.icon ) {
@@ -148,7 +159,7 @@ var attachEvents = function() {
 			if ( btn ) {
 				$btn = $( btn );
 				theme = $btn.attr( "data-" + $.mobile.ns + "theme" );
-				
+
 				if( $.support.touch ) {
 					hov = setTimeout(function() {
 						$btn.removeClass( "ui-btn-up-" + theme ).addClass( "ui-btn-down-" + theme );
@@ -171,11 +182,11 @@ var attachEvents = function() {
 		"vmouseover focus": function( event ) {
 			var btn = closestEnabledButton( event.target ),
 				$btn, theme;
-				
+
 			if ( btn ) {
 				$btn = $( btn );
 				theme = $btn.attr( "data-" + $.mobile.ns + "theme" );
-				
+
 				if( $.support.touch ) {
 					foc = setTimeout(function() {
 						$btn.removeClass( "ui-btn-up-" + theme ).addClass( "ui-btn-hover-" + theme );
@@ -188,12 +199,12 @@ var attachEvents = function() {
 		"vmouseout blur scrollstart": function( event ) {
 			var btn = closestEnabledButton( event.target ),
 				$btn, theme;
-				
+
 			if ( btn ) {
 				$btn = $( btn );
 				theme = $btn.attr( "data-" + $.mobile.ns + "theme" );
 				$btn.removeClass( "ui-btn-hover-" + theme  + " ui-btn-down-" + theme ).addClass( "ui-btn-up-" + theme );
-				
+
 				hov && clearTimeout( hov );
 				foc && clearTimeout( foc );
 			}

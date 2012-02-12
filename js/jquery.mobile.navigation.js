@@ -4,11 +4,11 @@
 
 define( [
 	"jquery",
-	"jquery.mobile.core",
-	"jquery.mobile.event",
-	"jquery.mobile.hashchange",
-	"jquery.mobile.page",
-	"jquery.mobile.transition" ], function( $ ) {
+	"./jquery.mobile.core",
+	"./jquery.mobile.event",
+	"../external/requirejs/depend!./jquery.mobile.hashchange[jquery]",
+	"./jquery.mobile.page",
+	"./jquery.mobile.transition" ], function( $ ) {
 //>>excludeEnd("jqmBuildExclude");
 ( function( $, undefined ) {
 
@@ -406,21 +406,9 @@ define( [
 
 	// Save the last scroll distance per page, before it is hidden
 	var setLastScrollEnabled = true,
-		firstScrollElem, getScrollElem, setLastScroll, delayedSetLastScroll;
+		setLastScroll, delayedSetLastScroll;
 
-	getScrollElem = function() {
-		var scrollElem = $window, activePage,
-			touchOverflow = $.support.touchOverflow && $.mobile.touchOverflowEnabled;
-
-		if( touchOverflow ){
-			activePage = $( ".ui-page-active" );
-			scrollElem = activePage.is( ".ui-native-fixed" ) ? activePage.find( ".ui-content" ) : activePage;
-		}
-
-		return scrollElem;
-	};
-
-	setLastScroll = function( scrollElem ) {
+	setLastScroll = function() {
 		// this barrier prevents setting the scroll value based on the browser
 		// scrolling the window based on a hashchange
 		if( !setLastScrollEnabled ) {
@@ -430,7 +418,7 @@ define( [
 		var active = $.mobile.urlHistory.getActive();
 
 		if( active ) {
-			var lastScroll = scrollElem && scrollElem.scrollTop();
+			var lastScroll = $window.scrollTop();
 
 			// Set active page's lastScroll prop.
 			// If the location we're scrolling to is less than minScrollBack, let it go.
@@ -443,7 +431,7 @@ define( [
 	// to the hash targets location (sometimes the top of the page). once pagechange fires
 	// getLastScroll is again permitted to operate
 	delayedSetLastScroll = function() {
-		setTimeout( setLastScroll, 100, $(this) );
+		setTimeout( setLastScroll, 100 );
 	};
 
 	// disable an scroll setting when a hashchange has been fired, this only works
@@ -462,23 +450,22 @@ define( [
 	$window.one( "pagecontainercreate", function(){
 		// once the page has changed, re-enable the scroll recording
 		$.mobile.pageContainer.bind( "pagechange", function() {
-			var scrollElem = getScrollElem();
 
 	 		setLastScrollEnabled = true;
 
 			// remove any binding that previously existed on the get scroll
 			// which may or may not be different than the scroll element determined for
 			// this page previously
-			scrollElem.unbind( "scrollstop", delayedSetLastScroll );
+			$window.unbind( "scrollstop", delayedSetLastScroll );
 
 			// determine and bind to the current scoll element which may be the window
 			// or in the case of touch overflow the element with touch overflow
-			scrollElem.bind( "scrollstop", delayedSetLastScroll );
+			$window.bind( "scrollstop", delayedSetLastScroll );
 		});
 	});
 
 	// bind to scrollstop for the first page as "pagechange" won't be fired in that case
-	getScrollElem().bind( "scrollstop", delayedSetLastScroll );
+	$window.bind( "scrollstop", delayedSetLastScroll );
 
 	//function for transitioning between two existing pages
 	function transitionPages( toPage, fromPage, transition, reverse ) {
@@ -489,7 +476,7 @@ define( [
 		}
 
 		toPage.data( "page" )._trigger( "beforeshow", null, { prevPage: fromPage || $( "" ) } );
-		
+
 		//clear page loader
 		$.mobile.hidePageLoadingMsg();
 
@@ -529,10 +516,6 @@ define( [
 
 	//simply set the active page's minimum height to screen height, depending on orientation
 	function resetActivePageHeight(){
-		// Don't apply this height in touch overflow enabled mode
-		if( $.support.touchOverflow && $.mobile.touchOverflowEnabled ){
-			return;
-		}
 		$( "." + $.mobile.activePageClass ).css( "min-height", getScreenHeight() );
 	}
 
@@ -573,7 +556,7 @@ define( [
 
 	$.mobile.dialogHashKey = dialogHashKey;
 
-	
+
 
 	//enable cross-domain page support
 	$.mobile.allowCrossDomainPages = false;
@@ -884,14 +867,11 @@ define( [
 						// Remove loading message.
 						hideMsg();
 
-						//show error message
-						$( "<div class='ui-loader ui-overlay-shadow ui-body-e ui-corner-all'><h1>"+ $.mobile.pageLoadErrorMessage +"</h1></div>" )
-							.css({ "display": "block", "opacity": 0.96, "top": $window.scrollTop() + 100 })
-							.appendTo( settings.pageContainer )
-							.delay( 800 )
-							.fadeOut( 400, function() {
-								$( this ).remove();
-							});
+						// show error message
+						$.mobile.showPageLoadingMsg( $.mobile.pageLoadErrorMessageTheme, $.mobile.pageLoadErrorMessage, true );
+
+						// hide after delay
+						setTimeout( $.mobile.hidePageLoadingMsg, 1500 );
 					}
 
 					deferred.reject( absUrl, options );
@@ -1091,7 +1071,7 @@ define( [
 		settings.reverse = settings.reverse || historyDir < 0;
 
 		transitionPages( toPage, fromPage, settings.transition, settings.reverse )
-			.done(function( name, reverse, $to, $from, alreadyFocused ) {
+			.done(function( name, reverse, $to, $from ) {
 				removeActiveLinkClass();
 
 				//if there's a duplicateCachedPage, remove it from the DOM now that it's hidden
@@ -1106,9 +1086,7 @@ define( [
 				// itself to avoid ie bug that reports offsetWidth as > 0 (core check for visibility)
 				// despite visibility: hidden addresses issue #2965
 				// https://github.com/jquery/jquery-mobile/issues/2965
-				if( !alreadyFocused ){
-					$.mobile.focusPage( toPage );
-				}
+				$.mobile.focusPage( toPage );
 
 				releasePageTransitionLock();
 
@@ -1233,7 +1211,7 @@ define( [
 					$activeClickedLink = $( link ).closest( ".ui-btn" ).not( ".ui-disabled" );
 					$activeClickedLink.addClass( $.mobile.activeBtnClass );
 					$( "." + $.mobile.activePageClass + " .ui-btn" ).not( link ).blur();
-					
+
 					// By caching the href value to data and switching the href to a #, we can avoid address bar showing in iOS. The click handler resets the href during its initial steps if this data is present
 					$( link )
 						.jqmData( "href", $( link  ).attr( "href" )  )
@@ -1261,8 +1239,8 @@ define( [
 				httpCleanup = function(){
 					window.setTimeout( function() { removeActiveLinkClass( true ); }, 200 );
 				};
-			
-			// If there's data cached for the real href value, set the link's href back to it again. This pairs with an address bar workaround from the vclick handler	
+
+			// If there's data cached for the real href value, set the link's href back to it again. This pairs with an address bar workaround from the vclick handler
 			if( $link.jqmData( "href" ) ){
 				$link.attr( "href", $link.jqmData( "href" ) );
 			}
@@ -1341,7 +1319,7 @@ define( [
 
 				//this may need to be more specific as we use data-rel more
 				role = $link.attr( "data-" + $.mobile.ns + "rel" ) || undefined;
-				
+
 			$.mobile.changePage( href, { transition: transition, reverse: reverse, role: role } );
 			event.preventDefault();
 		});
